@@ -170,7 +170,7 @@ describe("favoriteBlog", () => {
     ];
 
     const result = listHelper.favoriteBlog(blogs);
-    console.log(result);
+    //  console.log(result);
     expect(result).toEqual({
       title: blogs[1].title,
       author: blogs[1].author,

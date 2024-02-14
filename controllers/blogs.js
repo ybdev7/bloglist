@@ -21,15 +21,12 @@ blogsRouter.get("/:id", (req, res, next) => {
     .catch((err) => next(err));
 });
 
-blogsRouter.post("/", (req, res, next) => {
+blogsRouter.post("/", async (req, res, next) => {
   const blog = new Blog(req.body);
 
-  blog
-    .save()
-    .then((result) => {
-      res.status(201).json(result);
-    })
-    .catch((err) => next(err));
+  const result = await blog.save();
+
+  res.status(201).json(result);
 });
 
 blogsRouter.delete("/:id", (req, res, next) => {

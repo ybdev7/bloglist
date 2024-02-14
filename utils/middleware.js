@@ -11,7 +11,7 @@ const requestLogger = (request, response, next) => {
     " Body:  ",
     request.body
   );
-  console.log("<<<");
+  logger.info("<<<");
   next();
 };
 
