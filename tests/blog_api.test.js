@@ -96,6 +96,32 @@ test("new blog is saved with .likes default value set to 0", async () => {
   expect(res.body.likes).toBe(0);
 }, 100000);
 
+//4.12 a;
+test("new blog is not saved when missing title", async () => {
+  const newBlog = {
+    author: "Me",
+    url: "nothing",
+    likes: 10,
+  };
+
+  const res = await api.post("/api/blogs").send(newBlog);
+
+  expect(res.statusCode).toBe(400);
+}, 100000);
+
+//4.12 b;
+test("new blog is not saved when missing url", async () => {
+  const newBlog = {
+    title: "no url",
+    author: "Me",
+    likes: 10,
+  };
+
+  const res = await api.post("/api/blogs").send(newBlog);
+
+  expect(res.statusCode).toBe(400);
+}, 100000);
+
 afterAll(async () => {
   await mongoose.connection.close();
 });
