@@ -82,6 +82,20 @@ test("new blog is saved", async () => {
   expect(contents).toContain("Type wars");
 }, 100000);
 
+//4.11
+test("new blog is saved with .likes default value set to 0", async () => {
+  const newBlog = {
+    title: "No Likes",
+    author: "Me",
+    url: "nothing",
+  };
+
+  const res = await api.post("/api/blogs").send(newBlog);
+
+  expect(res.statusCode).toBe(201);
+  expect(res.body.likes).toBe(0);
+}, 100000);
+
 afterAll(async () => {
   await mongoose.connection.close();
 });
