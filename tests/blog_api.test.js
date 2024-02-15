@@ -4,45 +4,13 @@ const supertest = require("supertest");
 const app = require("../app");
 const Blog = require("../models/blog");
 
-const initialBlogs = [
-  {
-    title: "React patterns",
-    author: "Michael Chan",
-    url: "https://reactpatterns.com/",
-    likes: 7,
-  },
-  {
-    title: "Go To Statement Considered Harmful",
-    author: "Edsger W. Dijkstra",
-    url: "http://www.u.arizona.edu/~rubinson/copyright_violations/Go_To_Considered_Harmful.html",
-    likes: 5,
-  },
-  {
-    title: "Canonical string reduction",
-    author: "Edsger W. Dijkstra",
-    url: "http://www.cs.utexas.edu/~EWD/transcriptions/EWD08xx/EWD808.html",
-    likes: 12,
-  },
-  {
-    title: "First class tests",
-    author: "Robert C. Martin",
-    url: "http://blog.cleancoder.com/uncle-bob/2017/05/05/TestDefinitions.htmll",
-    likes: 10,
-  },
-  {
-    title: "TDD harms architecture",
-    author: "Robert C. Martin",
-    url: "http://blog.cleancoder.com/uncle-bob/2017/03/03/TDD-Harms-Architecture.html",
-    likes: 0,
-  },
-];
-
+const helper = require("./helper");
 const api = supertest(app);
 
 beforeEach(async () => {
   await Blog.deleteMany({});
 
-  const blogObjects = initialBlogs.map((blog) => new Blog(blog));
+  const blogObjects = helper.initialBlogs.map((blog) => new Blog(blog));
   const promiseArray = blogObjects.map((blog) => blog.save());
   await Promise.all(promiseArray);
 }, 100000);
@@ -50,7 +18,7 @@ beforeEach(async () => {
 // 4.8
 test("all blogs are returned", async () => {
   const res = await api.get("/api/blogs");
-  expect(res.body).toHaveLength(initialBlogs.length);
+  expect(res.body).toHaveLength(helper.initialBlogs.length);
 }, 100000);
 //4.9
 test("id property is defined", async () => {
@@ -78,7 +46,7 @@ test("new blog is saved", async () => {
 
   const contents = res.body.map((r) => r.title);
 
-  expect(res.body).toHaveLength(initialBlogs.length + 1);
+  expect(res.body).toHaveLength(helper.initialBlogs.length + 1);
   expect(contents).toContain("Type wars");
 }, 100000);
 
@@ -121,6 +89,101 @@ test("new blog is not saved when missing url", async () => {
 
   expect(res.statusCode).toBe(400);
 }, 100000);
+
+describe("deleting a blog", () => {
+  test("delete blog with existing id, returns status 204", async () => {
+    const blog = new Blog(helper.initialBlogs[0]);
+    await blog.save();
+    const numberOfBlogs = await helper.numberOfBlogsInDb();
+
+    const res = await api.delete(`/api/blogs/${blog.id}`);
+    expect(res.statusCode).toBe(204);
+    const numberOfBlogsNow = await helper.numberOfBlogsInDb();
+    expect(numberOfBlogsNow).toBe(numberOfBlogs - 1);
+  });
+
+  test("delete blog with non-existing id", async () => {
+    const numberOfBlogs = await helper.numberOfBlogsInDb();
+    const deletedId = await helper.deletedId();
+    const res = await api.delete(`/api/blogs/${deletedId}`);
+    expect(res.statusCode).toBe(204);
+    const numberOfBlogsNow = await helper.numberOfBlogsInDb();
+    expect(numberOfBlogsNow).toBe(numberOfBlogs);
+  }, 100000);
+  test("delete blog with invalid id", async () => {
+    const numberOfBlogs = await helper.numberOfBlogsInDb();
+
+    const res = await api.delete(`/api/blogs/12345678`);
+    expect(res.statusCode).toBe(400);
+    const numberOfBlogsNow = await helper.numberOfBlogsInDb();
+    expect(numberOfBlogsNow).toBe(numberOfBlogs);
+  }, 100000);
+});
+
+describe("updating a blog", () => {
+  test("update existing blog's title, author, url, likes", async () => {
+    const numberOfBlogs = await helper.numberOfBlogsInDb();
+    const updatedBlog = {
+      title: "updated blog",
+      author: "updated author",
+      url: "updated-blog.html",
+      likes: 105,
+    };
+    const existingId = await helper.existingId();
+    const res = await api.put(`/api/blogs/${existingId}`).send(updatedBlog);
+    expect(res.statusCode).toBe(200);
+
+    const blogResult = await helper.findBlogById(existingId);
+    expect(blogResult.likes).toBe(updatedBlog.likes);
+    expect(blogResult.title).toBe(updatedBlog.title);
+    expect(blogResult.author).toBe(updatedBlog.author);
+    expect(blogResult.url).toBe(updatedBlog.url);
+    const numberOfBlogsNow = await helper.numberOfBlogsInDb();
+    expect(numberOfBlogsNow).toBe(numberOfBlogs);
+  }, 100000);
+
+  test("update existing blog's likes", async () => {
+    const numberOfBlogs = await helper.numberOfBlogsInDb();
+    const updatedBlog = {
+      likes: 205,
+    };
+    const existingId = await helper.existingId();
+    const blogResultOld = await helper.findBlogById(existingId);
+
+    const res = await api.put(`/api/blogs/${existingId}`).send(updatedBlog);
+    expect(res.statusCode).toBe(200);
+
+    const blogResult = await helper.findBlogById(existingId);
+    expect(blogResult.likes).toBe(updatedBlog.likes); //updated likes
+    expect(blogResult.title).toBe(blogResultOld.title); //no change
+    expect(blogResult.author).toBe(blogResultOld.author);
+    expect(blogResult.url).toBe(blogResultOld.url);
+
+    const numberOfBlogsNow = await helper.numberOfBlogsInDb();
+    expect(numberOfBlogsNow).toBe(numberOfBlogs); //no change
+  }, 100000);
+
+  test("update existing blog with undefined", async () => {
+    const numberOfBlogs = await helper.numberOfBlogsInDb();
+    const updatedBlog = undefined;
+    const existingId = await helper.existingId();
+    const blogResultOld = await helper.findBlogById(existingId);
+
+    const res = await api.put(`/api/blogs/${existingId}`).send(updatedBlog);
+    expect(res.statusCode).toBe(200);
+
+    const blogResult = await helper.findBlogById(existingId);
+
+    //expect no change
+    expect(blogResult.likes).toBe(blogResultOld.likes);
+    expect(blogResult.title).toBe(blogResultOld.title);
+    expect(blogResult.author).toBe(blogResultOld.author);
+    expect(blogResult.url).toBe(blogResultOld.url);
+
+    const numberOfBlogsNow = await helper.numberOfBlogsInDb();
+    expect(numberOfBlogsNow).toBe(numberOfBlogs);
+  }, 100000);
+});
 
 afterAll(async () => {
   await mongoose.connection.close();
