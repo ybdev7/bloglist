@@ -1,4 +1,5 @@
 const Blog = require("../models/blog");
+const User = require("../models/user");
 
 const initialBlogs = [
   {
@@ -31,7 +32,7 @@ const numberOfBlogsInDb = async () => {
 const existingId = async () => {
   const allBlogs = await Blog.find({});
   const id = allBlogs[0].toJSON().id;
-  console.log(id);
+  // console.log(id);
   return id;
 };
 
@@ -40,10 +41,16 @@ const findBlogById = async (id) => {
   const res = await Blog.findById(id);
   return res.toJSON();
 };
+
+const numberOfUsersInDb = async () => {
+  const allUsers = await User.find({});
+  return allUsers.length;
+};
 module.exports = {
   initialBlogs,
   deletedId,
   numberOfBlogsInDb,
   existingId,
   findBlogById,
+  numberOfUsersInDb,
 };
