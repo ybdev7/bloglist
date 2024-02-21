@@ -50,6 +50,10 @@ blogsRouter.post("/", middleware.userExtractor, async (req, res, next) => {
 blogsRouter.delete("/:id", middleware.userExtractor, async (req, res, next) => {
   const blog = await Blog.findById(req.params.id);
 
+  //non-existing blog - maybe already deleted
+  if (!blog) res.status(204).end();
+
+  //blog found - check permission to delete
   if (blog.user.toString() === req.user._id.toString()) {
     await Blog.findByIdAndDelete(req.params.id);
 

@@ -3,16 +3,38 @@ mongoose.set("bufferTimeoutMS", 30000);
 const supertest = require("supertest");
 const app = require("../app");
 const Blog = require("../models/blog");
+const User = require("../models/user");
+const bcryptjs = require("bcryptjs");
 
 const helper = require("./helper");
 const api = supertest(app);
 
+let token = "";
 beforeEach(async () => {
   await Blog.deleteMany({});
 
   const blogObjects = helper.initialBlogs.map((blog) => new Blog(blog));
   const promiseArray = blogObjects.map((blog) => blog.save());
   await Promise.all(promiseArray);
+
+  await User.deleteMany({});
+
+  const passwordHash = await bcryptjs.hash("abcd", 10);
+  const user = new User({
+    username: "username1",
+    name: "Test",
+    passwordHash: passwordHash,
+  });
+
+  await user.save();
+
+  //get authorization token
+  const res = await api.post("/api/login").send({
+    username: "username1",
+    password: "abcd",
+  });
+
+  token = res.body.token;
 }, 100000);
 
 // 4.8
@@ -39,6 +61,7 @@ test("new blog is saved", async () => {
   await api
     .post("/api/blogs")
     .send(newBlog)
+    .set("Authorization", `Bearer ${token}`)
     .expect(201)
     .expect("Content-Type", /application\/json/);
 
@@ -58,7 +81,10 @@ test("new blog is saved with .likes default value set to 0", async () => {
     url: "nothing",
   };
 
-  const res = await api.post("/api/blogs").send(newBlog);
+  const res = await api
+    .post("/api/blogs")
+    .send(newBlog)
+    .set("Authorization", `Bearer ${token}`);
 
   expect(res.statusCode).toBe(201);
   expect(res.body.likes).toBe(0);
@@ -72,7 +98,10 @@ test("new blog is not saved when missing title", async () => {
     likes: 10,
   };
 
-  const res = await api.post("/api/blogs").send(newBlog);
+  const res = await api
+    .post("/api/blogs")
+    .send(newBlog)
+    .set("Authorization", `Bearer ${token}`);
 
   expect(res.statusCode).toBe(400);
 }, 100000);
@@ -85,18 +114,36 @@ test("new blog is not saved when missing url", async () => {
     likes: 10,
   };
 
-  const res = await api.post("/api/blogs").send(newBlog);
+  const res = await api
+    .post("/api/blogs")
+    .send(newBlog)
+    .set("Authorization", `Bearer ${token}`);
 
   expect(res.statusCode).toBe(400);
+}, 100000);
+//4.23 - new blog is not saved without the authorization token
+test("new blog is not saved wihtout authorization token-expect status code 401", async () => {
+  const newBlog = {
+    title: "No Likes",
+    author: "Me",
+    url: "nothing",
+  };
+
+  const res = await api.post("/api/blogs").send(newBlog);
+
+  expect(res.statusCode).toBe(401);
 }, 100000);
 
 describe("deleting a blog", () => {
   test("delete blog with existing id, returns status 204", async () => {
     const blog = new Blog(helper.initialBlogs[0]);
+    blog.user = await helper.userIdExtractor(token);
     await blog.save();
     const numberOfBlogs = await helper.numberOfBlogsInDb();
 
-    const res = await api.delete(`/api/blogs/${blog.id}`);
+    const res = await api
+      .delete(`/api/blogs/${blog.id}`)
+      .set("Authorization", `Bearer ${token}`);
     expect(res.statusCode).toBe(204);
     const numberOfBlogsNow = await helper.numberOfBlogsInDb();
     expect(numberOfBlogsNow).toBe(numberOfBlogs - 1);
@@ -105,7 +152,10 @@ describe("deleting a blog", () => {
   test("delete blog with non-existing id", async () => {
     const numberOfBlogs = await helper.numberOfBlogsInDb();
     const deletedId = await helper.deletedId();
-    const res = await api.delete(`/api/blogs/${deletedId}`);
+    const res = await api
+      .delete(`/api/blogs/${deletedId}`)
+      .set("Authorization", `Bearer ${token}`);
+    console.log(res);
     expect(res.statusCode).toBe(204);
     const numberOfBlogsNow = await helper.numberOfBlogsInDb();
     expect(numberOfBlogsNow).toBe(numberOfBlogs);
@@ -113,7 +163,9 @@ describe("deleting a blog", () => {
   test("delete blog with invalid id", async () => {
     const numberOfBlogs = await helper.numberOfBlogsInDb();
 
-    const res = await api.delete(`/api/blogs/12345678`);
+    const res = await api
+      .delete(`/api/blogs/12345678`)
+      .set("Authorization", `Bearer ${token}`);
     expect(res.statusCode).toBe(400);
     const numberOfBlogsNow = await helper.numberOfBlogsInDb();
     expect(numberOfBlogsNow).toBe(numberOfBlogs);

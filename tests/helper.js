@@ -1,5 +1,6 @@
 const Blog = require("../models/blog");
 const User = require("../models/user");
+const jwt = require("jsonwebtoken");
 
 const initialBlogs = [
   {
@@ -15,6 +16,16 @@ const initialBlogs = [
     likes: 15,
   },
 ];
+
+const userIdExtractor = async (token) => {
+  if (!token) {
+    return null;
+  } else {
+    const decodedToken = jwt.verify(token, process.env.SECRET);
+    const user = await User.findById(decodedToken.id);
+    return user._id;
+  }
+};
 
 const deletedId = async () => {
   const blog = new Blog(initialBlogs[0]);
@@ -53,4 +64,5 @@ module.exports = {
   existingId,
   findBlogById,
   numberOfUsersInDb,
+  userIdExtractor,
 };
