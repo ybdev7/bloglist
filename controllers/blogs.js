@@ -3,6 +3,7 @@ const Blog = require("../models/blog");
 const User = require("../models/user");
 const jwt = require("jsonwebtoken");
 const middleware = require("../utils/middleware");
+const ObjectId = require("mongoose").Types.ObjectId;
 
 // const getTokenFrom = (req) => {
 //   const authorization = req.get("authorization");
@@ -73,17 +74,26 @@ blogsRouter.delete("/:id", middleware.userExtractor, async (req, res, next) => {
 });
 
 blogsRouter.put("/:id", async (req, res, next) => {
+  //console.log("req.body", req.body);
+
   const blog = {
     title: req.body.title,
     author: req.body.author,
     url: req.body.url,
     likes: req.body.likes,
+    user: new ObjectId(req.body.user.id),
   };
 
-  const updatedBlog = await Blog.findByIdAndUpdate(req.params.id, blog, {
+  console.log(blog);
+  const result = await Blog.findByIdAndUpdate(req.params.id, blog, {
     new: true,
   });
 
+  const updatedBlog = await result.populate("user", {
+    username: 1,
+    name: 1,
+  });
+  console.log("updatedBlog=", updatedBlog);
   res.json(updatedBlog);
 });
 

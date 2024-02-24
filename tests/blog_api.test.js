@@ -134,6 +134,26 @@ test("new blog is not saved wihtout authorization token-expect status code 401",
   expect(res.statusCode).toBe(401);
 }, 100000);
 
+describe("updating a blog", () => {
+  test.only("update blog with existing id, update likes only", async () => {
+    const blog = new Blog(helper.initialBlogs[0]);
+    blog.user = await helper.userIdExtractor(token);
+    await blog.save();
+    const numberOfBlogs = await helper.numberOfBlogsInDb();
+
+    const savedRes = await api.get(`/api/blogs/${blog.id}`);
+    console.log("savedBlog=", savedRes.body);
+    savedRes.body.likes = 100;
+    const res = await api
+      .put(`/api/blogs/${blog.id}`)
+      .send(savedRes.body)
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.statusCode).toBe(200);
+    const numberOfBlogsNow = await helper.numberOfBlogsInDb();
+    expect(numberOfBlogsNow).toBe(numberOfBlogs);
+    console.log("res.body=", res.body);
+  });
+}, 100000);
 describe("deleting a blog", () => {
   test("delete blog with existing id, returns status 204", async () => {
     const blog = new Blog(helper.initialBlogs[0]);
