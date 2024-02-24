@@ -41,10 +41,17 @@ blogsRouter.post("/", middleware.userExtractor, async (req, res, next) => {
   });
 
   const result = await blog.save();
-  req.user.blogs = req.user.blogs.concat(result._id);
+  //Fix for 5.8
+  const newBlog = await result.populate("user", {
+    username: 1,
+    name: 1,
+  });
+
+  req.user.blogs = req.user.blogs.concat(newBlog._id);
   req.user.save();
 
-  res.status(201).json(result);
+  // console.log(newBlog);
+  res.status(201).json(newBlog);
 });
 
 blogsRouter.delete("/:id", middleware.userExtractor, async (req, res, next) => {
